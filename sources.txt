@@ -1,0 +1,2 @@
+https://github.com/bheinzerling/bpemb
+https://arxiv.org/pdf/1710.02187.pdf
