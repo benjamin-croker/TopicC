@@ -29,8 +29,8 @@ class TopicC(nn.Module):
         # 2* since lstm is bi-directional
         self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
         self.att_to_pointer_map = nn.Linear(attention_size, 1, bias=False)
-        self.seq_to_dense_map = nn.Linear(4 * enc_hidden_size, dense_size)
-        self.dense_to_output_map = nn.Linear(dense_size, output_size)
+        self.seq_to_dense_map = nn.Linear(4 * enc_hidden_size, dense_size, bias=False)
+        self.dense_to_output_map = nn.Linear(dense_size, output_size, bias=False)
         self.dropout = nn.Dropout(dropout_rate)
 
     def embed_sequence(self, sequence: str) -> torch.Tensor:
@@ -61,11 +61,19 @@ class TopicC(nn.Module):
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
 
+        # encoder masks to indicate which parts of the sequence should be considered
+        enc_masks = torch.zeros(enc_outputs.shape[0], enc_outputs.shape[1], 1, dtype=torch.float)
+        for i, seq in enumerate(seq_vecs):
+            enc_masks[i, len(seq):] = 1
+
         # att_vec.shape = max_seq_len, batch_size, attention_size
         att_vec = self.enc_to_att_map(enc_outputs)
+        att_vec = torch.tanh(att_vec)
         # pointer to the where attention is given to each index of the sequence
         # pointer.shape = max_seq_len, batch_size, 1
         pointer = self.att_to_pointer_map(att_vec)
+        # mask out sections which are not part of the sequence
+        pointer.data.masked_fill_(enc_masks.bool(), -float('inf'))
         # pointer_w.shape = max_seq_len, batch_size, 1
         # each slice pointer_w[:, seq_n, 0] will sum to 1, where the values
         # indicate where the most attention should be paid
