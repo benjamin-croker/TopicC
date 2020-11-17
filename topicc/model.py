@@ -2,6 +2,7 @@ from typing import List
 
 import torch
 import torch.nn as nn
+import torch.nn.functional
 import torch.nn.utils.rnn as rnn
 
 from bpemb import BPEmb
@@ -26,9 +27,9 @@ class TopicC(nn.Module):
             bidirectional=True
         )
         # 2* since lstm is bi-directional
-        self.enc_to_att_map = nn.Linear(2*enc_hidden_size, attention_size, bias=False)
+        self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
         self.att_to_pointer_map = nn.Linear(attention_size, 1, bias=False)
-        self.seq_to_dense_map = nn.Linear(2*enc_hidden_size, dense_size)
+        self.seq_to_dense_map = nn.Linear(2 * enc_hidden_size, dense_size)
         self.dense_to_output_map = nn.Linear(dense_size, output_size)
         self.dropout = nn.Dropout(dropout_rate)
 
@@ -36,14 +37,15 @@ class TopicC(nn.Module):
         v_ids = self.embedding_model.encode_ids(sequence)
         return torch.tensor(self.embedding_model.vectors[v_ids])
 
-    def pack_seq_vecs(self, seq_vecs: List[torch.Tensor]) -> rnn.PackedSequence:
+    @staticmethod
+    def pack_seq_vecs(seq_vecs: List[torch.Tensor]) -> rnn.PackedSequence:
         # adds zero vectors as padding
         seq_vec_pad = rnn.pad_sequence(seq_vecs)
         # pack them suitable for an LSTM or other RNN
         return rnn.pack_padded_sequence(
             seq_vec_pad, lengths=[v.shape[0] for v in seq_vecs]
         )
-    
+
     def forward(self, sequences: List[str]):
         # Make the word embeddings for each sequence
         # list of Tensors of dim seq_len, embed_size
@@ -54,7 +56,7 @@ class TopicC(nn.Module):
         packed_seq_vecs = self.pack_seq_vecs(seq_vecs)
 
         # run through the LSTM
-        enc_outputs, (h_n, c_n) = self.encoder(packed_seq_vecs)
+        enc_outputs, (_, _) = self.encoder(packed_seq_vecs)
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
@@ -93,7 +95,7 @@ class TopicC(nn.Module):
         # dense.shape = batch_size, n_categories
         output = self.dense_to_output_map(dense)
         output = torch.tanh(output)
-    
+
         return nn.functional.softmax(output, dim=0)
 
 

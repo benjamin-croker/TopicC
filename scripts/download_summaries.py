@@ -1,10 +1,12 @@
 from bs4 import BeautifulSoup
-import urllib.request, urllib.parse
+import urllib.request
+import urllib.parse
+import urllib.error
 import json
 import threading
 import os
 
-EXCLUDED_LINKS = [
+EXCLUDED_LINKS = (
     'Featured articles',
     'Good articles',
     'Template:Icon/doc',
@@ -31,12 +33,12 @@ EXCLUDED_LINKS = [
     'View history',
     'Upload file',
     'What links here'
-]
+)
 # number of requests
 N_REQ_LIMIT = 100
 # per seconds
 T_REQ_LIMT = 1
-#URLS
+# URLS
 WIKI_VA_L5_URL = 'https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/5'
 WIKI_TITLE_SUMMARY_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary/{}'
 WIKI_URL = 'https://en.wikipedia.org'
@@ -51,16 +53,17 @@ def get_url(url, max_retries=2):
             data = req.read()
             charset = req.headers.get_content_charset('utf-8')
             return data.decode(charset)
-            
+
         except urllib.error.URLError:
             retries += 1
 
     raise urllib.error.URLError("Exceeded max retries")
 
+
 # Gets the URLs for category subpages from the Level 5 Vital Articles Main Page
 def get_va_lvl5_subpage_urls(base_url=WIKI_URL, va_lvl5_url=WIKI_VA_L5_URL):
     va_lvl5_soup = BeautifulSoup(get_url(va_lvl5_url), 'html.parser')
-    va_lvl5_subpage_link_tags = va_lvl5_soup.find('table', attrs={'class':'wikitable'}).find_all('a')
+    va_lvl5_subpage_link_tags = va_lvl5_soup.find('table', attrs={'class': 'wikitable'}).find_all('a')
     va_lvl5_subpage_urls = [base_url + a['href'] for a in va_lvl5_subpage_link_tags]
     return va_lvl5_subpage_urls
 
@@ -75,14 +78,14 @@ def get_subpage_titles(va_lvl5_subpage_url, excluded_links=EXCLUDED_LINKS):
     va_lvl5_subpage_soup.find('footer', {'class': 'mw-footer'}).decompose()
     # Find all links to pages in the Vital Article list.
     # They are links within list elements.
-    links = [l.find_all('a', title=True) for l in va_lvl5_subpage_soup.find_all('li')]
+    links = [li.find_all('a', title=True) for li in va_lvl5_subpage_soup.find_all('li')]
     # flatten the lists
     links = sum(links, [])
     # Get the page titles, but exclude links to other summary information/
     # Also, get the disambiguated title, rather than the text
     # E.g. extract "Stripping (chemistry)" from
     # <a href="/wiki/Stripping_(chemistry)" title="Stripping (chemistry)">Stripping</a>
-    titles = [l['title'] for l in links if l.text not in excluded_links]
+    titles = [link['title'] for link in links if link.text not in excluded_links]
     # remove duplicates
     return list(set(titles))
 
@@ -103,17 +106,17 @@ def rate_limit_query(qry_fun, args, n_req, t_limit):
     # timer is just used as a timer, no action performed
     def _f():
         pass
-    
+
     results = []
-    
+
     for i in range(0, len(args), n_req):
-        print(f"Query {i} to {i+n_req} of {len(args)}")
+        print(f"Query {i} to {i + n_req} of {len(args)}")
         t_timer = threading.Timer(t_limit, _f)
         t_timer.start()
-        results += [qry_fun(arg) for arg in args[i:(i+n_req)]]
+        results += [qry_fun(arg) for arg in args[i:(i + n_req)]]
         print("Waiting...")
         t_timer.join()
-        
+
     return results
 
 
@@ -121,26 +124,26 @@ def rate_limit_query(qry_fun, args, n_req, t_limit):
 def get_subpage_summaries(titles, n_req_limit=N_REQ_LIMIT, t_req_limit=T_REQ_LIMT):
     summaries = rate_limit_query(get_title_summary, titles, n_req_limit, t_req_limit)
     summaries = [s.replace('\n', '') for s in summaries]
-    
+
     if len(titles) != len(summaries):
         raise ValueError("titles and summaries should have the same length")
-    
+
     return summaries
 
 
 def write_files(categories, titles, summaries):
-    with open(os.path.join('data', 'categories.txt'), 'w') as f:
-        f.writelines([(t+'\n') for t in categories])
+    with open(os.path.join('../data', 'categories.txt'), 'w') as f:
+        f.writelines([(t + '\n') for t in categories])
 
-    with open(os.path.join('data', 'titles.txt'), 'w') as f:
-        f.writelines([(t+'\n') for t in titles])
-    
-    with open(os.path.join('data', 'summaries.txt'), 'w') as f:
-        f.writelines([(s+'\n') for s in summaries])
+    with open(os.path.join('../data', 'titles.txt'), 'w') as f:
+        f.writelines([(t + '\n') for t in titles])
+
+    with open(os.path.join('../data', 'summaries.txt'), 'w') as f:
+        f.writelines([(s + '\n') for s in summaries])
 
     categories_unique = set(categories)
-    category_labels = {c:i for i, c in enumerate(categories_unique)}
-    with open(os.path.join('data', 'category_labels.json'), 'w') as f:
+    category_labels = {c: i for i, c in enumerate(categories_unique)}
+    with open(os.path.join('../data', 'category_labels.json'), 'w') as f:
         json.dump(category_labels, f, indent=2)
 
 
@@ -148,7 +151,7 @@ def get_all_summaries(va_lvl5_subpage_url, va_lvl5_url=WIKI_VA_L5_URL):
     titles = get_subpage_titles(va_lvl5_subpage_url)
     summaries = get_subpage_summaries(titles)
     # get the category from the url
-    category = va_lvl5_subpage_url.replace(va_lvl5_url+'/', '').replace('/', '_').replace(',', '')
+    category = va_lvl5_subpage_url.replace(va_lvl5_url + '/', '').replace('/', '_').replace(',', '')
     # repeat category for each title
     categories = [category] * len(titles)
     return categories, titles, summaries
@@ -158,7 +161,7 @@ def main():
     categories = []
     titles = []
     summaries = []
-    
+
     va_lvl5_subpage_urls = get_va_lvl5_subpage_urls()
     for va_lvl5_subpage_url in va_lvl5_subpage_urls:
         c, t, s = get_all_summaries(va_lvl5_subpage_url)

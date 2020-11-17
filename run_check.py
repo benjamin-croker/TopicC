@@ -1,6 +1,7 @@
-import data
-import model
+from topicc import data, model
 import torch
+import torch.utils.data
+
 
 def main():
     print('start')
@@ -10,12 +11,13 @@ def main():
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True)
 
     for x, y in dataloader:
+        print(model.topicc_loss(topicc(x), y))
         print(x[1])
         print(y)
         break
 
-    print(model.topicc_loss(topicc(x), y))
     print('done')
+
 
 if __name__ == '__main__':
     main()
