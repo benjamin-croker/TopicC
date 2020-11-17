@@ -1,4 +1,4 @@
-from topicc import data, model
+from topicc import data, model, optimiser
 import torch
 import torch.utils.data
 
@@ -6,15 +6,10 @@ import torch.utils.data
 def main():
     print('start')
     # A simple test to make sure everything's loading correctly
-    topicc = model.TopicC(output_size=30, enc_hidden_size=200, attention_size=50, dense_size=100)
+    topicc = model.TopicC(output_size=30, enc_hidden_size=20, attention_size=10, dense_size=10)
     dataset = data.WikiVALvl5Dataset('data/summaries.txt', 'data/categories.txt', 'data/category_labels.json')
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True)
 
-    for x, y in dataloader:
-        print(model.topicc_loss(topicc(x), y))
-        print(x[1])
-        print(y)
-        break
+    topicc = optimiser.train(topicc, dataset)
 
     print('done')
 

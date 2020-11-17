@@ -30,6 +30,11 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
                  category_labels_fn: str):
         self.summaries = load_summaries(summaries_fn)
         self.categories = load_categories(categories_fn)
+        # remove any empty sequences
+        self.summaries, self.categories = zip(*[
+            (summary, category) for summary, category in zip(self.summaries, self.categories)
+            if len(summary) > 0
+        ])
         self.category_to_label_map = load_category_labels(category_labels_fn)
 
         self.label_to_category_map = {
@@ -46,7 +51,8 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         return self.summaries[index], self.labels[index]
 
-    def labels_to_categories(self, labels):
+    def labels_to_categories(self, labels: torch.Tensor):
+        labels = labels.tolist()
         return [self.label_to_category_map[label] for label in labels]
 
     def n_labels(self):

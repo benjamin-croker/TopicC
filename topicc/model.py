@@ -46,7 +46,7 @@ class TopicC(nn.Module):
             seq_vec_pad, lengths=[v.shape[0] for v in seq_vecs]
         )
 
-    def forward(self, sequences: List[str]):
+    def forward(self, sequences: List[str]) -> torch.Tensor:
         # Make the word embeddings for each sequence
         # list of Tensors of dim seq_len, embed_size
         seq_vecs = [self.embed_sequence(s) for s in sequences]
@@ -98,7 +98,10 @@ class TopicC(nn.Module):
 
         return nn.functional.softmax(output, dim=0)
 
+    def loss(self, sequences: List[str], target: torch.Tensor):
+        pred_probs = self.forward(sequences)
+        return nn.functional.nll_loss(-1 * torch.log(pred_probs), target, reduction='sum')
 
-def topicc_loss(topicc_preds, target):
-    # calculated the cross entropy loss via negative log likelihood loss
-    return nn.functional.nll_loss(-1 * torch.log(topicc_preds), target)
+    def predict(self, sequences: List[str]):
+        _, pred = self.forward(sequences).topk(1)
+        return pred.squeeze()
