@@ -96,7 +96,6 @@ class TopicC(nn.Module):
         # final output layer
         # dense.shape = batch_size, n_categories
         output = self.dense_to_output_map(dense)
-        output = torch.tanh(output)
 
         return nn.functional.log_softmax(output, dim=0)
 

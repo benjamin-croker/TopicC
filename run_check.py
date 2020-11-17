@@ -6,7 +6,7 @@ import torch.utils.data
 def main():
     print('start')
     # A simple test to make sure everything's loading correctly
-    topicc = model.TopicC(output_size=30, enc_hidden_size=30, attention_size=30, dense_size=60)
+    topicc = model.TopicC(output_size=30, enc_hidden_size=100, attention_size=100, dense_size=100   )
     dataset = data.WikiVALvl5Dataset('data/summaries.txt', 'data/categories.txt', 'data/category_labels.json')
 
     topicc = optimiser.train(topicc, dataset)
