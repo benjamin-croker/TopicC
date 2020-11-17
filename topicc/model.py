@@ -29,7 +29,7 @@ class TopicC(nn.Module):
         # 2* since lstm is bi-directional
         self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
         self.att_to_pointer_map = nn.Linear(attention_size, 1, bias=False)
-        self.seq_to_dense_map = nn.Linear(2 * enc_hidden_size, dense_size)
+        self.seq_to_dense_map = nn.Linear(4 * enc_hidden_size, dense_size)
         self.dense_to_output_map = nn.Linear(dense_size, output_size)
         self.dropout = nn.Dropout(dropout_rate)
 
@@ -56,7 +56,7 @@ class TopicC(nn.Module):
         packed_seq_vecs = self.pack_seq_vecs(seq_vecs)
 
         # run through the LSTM
-        enc_outputs, (_, _) = self.encoder(packed_seq_vecs)
+        enc_outputs, (h_n, _) = self.encoder(packed_seq_vecs)
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
@@ -77,13 +77,15 @@ class TopicC(nn.Module):
         # permute so the batch dimension is first, and seq_len dim is summed
         # enc_outputs.shape = batch_size, 2*enc_hidden_size, max_seq_len
         enc_outputs = enc_outputs.permute(1, 2, 0)
-
         # weighted sum of states
-        # seq_output.shape = batch_size, 2*enc_hidden_size, 1
-        seq_output = torch.bmm(enc_outputs, pointer_w)
+        # att_output.shape = batch_size, 2*enc_hidden_size, 1
+        att_output = torch.bmm(enc_outputs, pointer_w)
         # remove the last dimension
-        # seq_output.shape = batch_size, 2*enc_hidden_size
-        seq_output = seq_output.squeeze(dim=2)
+        # att_output.shape = batch_size, 2*enc_hidden_size
+        att_output = att_output.squeeze(dim=2)
+
+        # combine with the hidden and cell states
+        seq_output = torch.cat((h_n[0], h_n[1], att_output), dim=1)
 
         # have a dense non-linear layer
         # dense.shape = batch_size, dense_size
@@ -96,11 +98,11 @@ class TopicC(nn.Module):
         output = self.dense_to_output_map(dense)
         output = torch.tanh(output)
 
-        return nn.functional.softmax(output, dim=0)
+        return nn.functional.log_softmax(output, dim=0)
 
     def loss(self, sequences: List[str], target: torch.Tensor):
         pred_probs = self.forward(sequences)
-        return nn.functional.nll_loss(-1 * torch.log(pred_probs), target, reduction='sum')
+        return nn.functional.nll_loss(pred_probs, target, reduction='mean')
 
     def predict(self, sequences: List[str]):
         _, pred = self.forward(sequences).topk(1)
