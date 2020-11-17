@@ -69,7 +69,7 @@ class TopicC(nn.Module):
         # pointer_w.shape = max_seq_len, batch_size, 1
         # each slice pointer_w[:, seq_n, 0] will sum to 1, where the values
         # indicate where the most attention should be paid
-        pointer_w = nn.functional.softmax(pointer, dim=0)
+        pointer_w = nn.functional.softmax(pointer, dim=1)
 
         # permute so the batch dimension is first instead of second
         # pointer_w.shape = batch_size, max_seq_len, 1
@@ -97,7 +97,7 @@ class TopicC(nn.Module):
         # dense.shape = batch_size, n_categories
         output = self.dense_to_output_map(dense)
 
-        return nn.functional.log_softmax(output, dim=0)
+        return nn.functional.log_softmax(output, dim=1)
 
     def loss(self, sequences: List[str], target: torch.Tensor):
         pred_probs = self.forward(sequences)

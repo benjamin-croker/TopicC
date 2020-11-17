@@ -7,34 +7,36 @@ from topicc.data import train_test_split
 def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # constants TODO: move to args
     lr = 0.001
-    epochs = 10000
-    batch_size = 2
-    clip_grad = 5
-    report_batch = 1
+    epochs = 1
+    batch_size = 32
+    clip_grad = 10
+    report_batch = 20
 
     # set up the batch data
     # TODO: train/test split
-    train_dataset, test_dataset = train_test_split(dataset, test_prop=0.001)
-    dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-    print(len(test_dataset))
+    # train_dataset, test_dataset = train_test_split(dataset, test_prop=0.001)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    # print(len(test_dataset))
 
     # set the model to training mode
     topicc.train()
 
+    loss_fn = torch.nn.NLLLoss()
+
     optimizer = torch.optim.Adam(topicc.parameters(), lr=lr)
     current_loss = 0
 
-    for i_batch, (sequences, labels) in enumerate(dataloader):
-        for x in zip(dataset.labels_to_categories(labels), sequences):
-            print(x)
+    # for i_batch, (sequences, labels) in enumerate(dataloader):
+    #     for x in zip(dataset.labels_to_categories(labels), sequences):
+    #         print(x)
 
     for i_epoch in range(epochs):
         for i_batch, (sequences, labels) in enumerate(dataloader):
             optimizer.zero_grad()
-            loss = topicc.loss(sequences, labels)
+            loss = loss_fn(topicc(sequences), labels)
             current_loss += loss
             loss.backward()
-            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
+            _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
 
             if i_batch % report_batch == 0:
