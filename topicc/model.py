@@ -63,10 +63,9 @@ class TopicC(nn.Module):
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
 
         # encoder masks to indicate which parts of the sequence should be considered
-        enc_masks = torch.zeros(enc_outputs.shape[0], enc_outputs.shape[1], 1, dtype=torch.float)
+        enc_masks = torch.zeros(enc_outputs.shape[0], enc_outputs.shape[1], 1, dtype=torch.bool)
         for i, last in enumerate(seq_last):
-            seq_len = last + 1
-            enc_masks[i, seq_len:, 0] = True
+            enc_masks[(last + 1):, i,  0] = True
 
         # att_vec.shape = max_seq_len, batch_size, attention_size
         att_vec = self.enc_to_att_map(enc_outputs)
@@ -75,7 +74,7 @@ class TopicC(nn.Module):
         # pointer.shape = max_seq_len, batch_size, 1
         pointer = self.att_to_pointer_map(att_vec)
         # mask out sections which are not part of the sequence
-        pointer.data.masked_fill_(enc_masks, -float('inf'))
+        pointer = pointer.masked_fill(enc_masks, -float('inf'))
         # pointer_w.shape = max_seq_len, batch_size, 1
         # each slice pointer_w[:, seq_n, 0] will sum to 1, where the values
         # indicate where the most attention should be paid

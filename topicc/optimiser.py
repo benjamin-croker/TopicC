@@ -6,11 +6,11 @@ from topicc.data import train_test_split
 
 def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # constants TODO: move to args
-    lr = 0.001
+    lr = 0.005
     epochs = 1
     batch_size = 32
     clip_grad = 5
-    report_batch = 10
+    report_batch = 20
 
     # set up the batch data
     # TODO: train/test split
@@ -29,11 +29,11 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
 
     for i_epoch in range(epochs):
         for i_batch, (sequences, labels) in enumerate(dataloader):
+            optimizer.zero_grad()
             loss = topicc.loss(sequences, labels)
             current_loss += loss
-            optimizer.zero_grad()
             loss.backward()
-            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
+            _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
 
             if i_batch % report_batch == 0:
