@@ -29,9 +29,9 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
 
     for i_epoch in range(epochs):
         for i_batch, (sequences, labels) in enumerate(dataloader):
-            optimizer.zero_grad()
             loss = topicc.loss(sequences, labels)
             current_loss += loss
+            optimizer.zero_grad()
             loss.backward()
             # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
@@ -55,7 +55,7 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
                 preds = topicc.predict(sequences[0:5])
                 topicc.train()
                 examples = zip(
-                    sequences,
+                    sequences[0:5],
                     dataset.labels_to_categories(labels[0:5]),
                     dataset.labels_to_categories(preds)
                 )

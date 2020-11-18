@@ -57,16 +57,16 @@ class TopicC(nn.Module):
         packed_seq_vecs = self.pack_seq_vecs(seq_vecs)
 
         # run through the LSTM
-        enc_outputs, _ = self.encoder(packed_seq_vecs)
+        enc_outputs, (h_c, _) = self.encoder(packed_seq_vecs)
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
 
         # encoder masks to indicate which parts of the sequence should be considered
         enc_masks = torch.zeros(enc_outputs.shape[0], enc_outputs.shape[1], 1, dtype=torch.float)
-        for i, seq_last in enumerate(seq_last):
-            seq_len = seq_last + 1
-            enc_masks[i, seq_len:] = 1
+        for i, last in enumerate(seq_last):
+            seq_len = last + 1
+            enc_masks[i, seq_len:, 0] = True
 
         # att_vec.shape = max_seq_len, batch_size, attention_size
         att_vec = self.enc_to_att_map(enc_outputs)
@@ -75,7 +75,7 @@ class TopicC(nn.Module):
         # pointer.shape = max_seq_len, batch_size, 1
         pointer = self.att_to_pointer_map(att_vec)
         # mask out sections which are not part of the sequence
-        pointer.data.masked_fill_(enc_masks.bool(), -float('inf'))
+        pointer.data.masked_fill_(enc_masks, -float('inf'))
         # pointer_w.shape = max_seq_len, batch_size, 1
         # each slice pointer_w[:, seq_n, 0] will sum to 1, where the values
         # indicate where the most attention should be paid
@@ -95,13 +95,16 @@ class TopicC(nn.Module):
         att_output = att_output.squeeze(dim=2)
 
         # combine with the hidden and cell states
-        seq_output = torch.cat((enc_outputs[:, :, seq_last], att_output), dim=1)
+        # get the index of the hidden state for the last part of each sequence
+        seq_last = torch.tensor(seq_last).unsqueeze(-1).repeat(1, enc_outputs.shape[1]).unsqueeze(-1)
+        enc_outputs = torch.gather(enc_outputs, dim=2, index=seq_last).squeeze()
+        seq_output = torch.cat((enc_outputs, att_output), dim=1)
 
         # have a dense non-linear layer
         # dense.shape = batch_size, dense_size
         dense = self.seq_to_dense_map(seq_output)
         dense = torch.tanh(dense)
-        dense = self.dropout(dense)
+        # dense = self.dropout(dense)
 
         # final output layer
         # dense.shape = batch_size, n_categories
