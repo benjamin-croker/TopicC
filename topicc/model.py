@@ -52,19 +52,21 @@ class TopicC(nn.Module):
         seq_vecs = [self.embed_sequence(s) for s in sequences]
         # sort in descending order of length
         seq_vecs = sorted(seq_vecs, key=len)[::-1]
+        seq_last = [len(seq_vec)-1 for seq_vec in seq_vecs]
         # pack the sequence for the LSTM
         packed_seq_vecs = self.pack_seq_vecs(seq_vecs)
 
         # run through the LSTM
-        enc_outputs, (h_n, _) = self.encoder(packed_seq_vecs)
+        enc_outputs, _ = self.encoder(packed_seq_vecs)
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
 
         # encoder masks to indicate which parts of the sequence should be considered
         enc_masks = torch.zeros(enc_outputs.shape[0], enc_outputs.shape[1], 1, dtype=torch.float)
-        for i, seq in enumerate(seq_vecs):
-            enc_masks[i, len(seq):] = 1
+        for i, seq_last in enumerate(seq_last):
+            seq_len = seq_last + 1
+            enc_masks[i, seq_len:] = 1
 
         # att_vec.shape = max_seq_len, batch_size, attention_size
         att_vec = self.enc_to_att_map(enc_outputs)
@@ -93,7 +95,7 @@ class TopicC(nn.Module):
         att_output = att_output.squeeze(dim=2)
 
         # combine with the hidden and cell states
-        seq_output = torch.cat((h_n[0], h_n[1], att_output), dim=1)
+        seq_output = torch.cat((enc_outputs[:, :, seq_last], att_output), dim=1)
 
         # have a dense non-linear layer
         # dense.shape = batch_size, dense_size

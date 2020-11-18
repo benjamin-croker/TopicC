@@ -58,6 +58,9 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
     def n_labels(self):
         return len(self.category_to_label_map)
 
+    def weights(self):
+        return [1/torch.sum(self.labels==label) for label in self.labels]
+
 
 def train_test_split(wiki_va_l5_dataset: WikiVALvl5Dataset,
                      test_prop: float = 0.2, seed: int = None):

@@ -6,8 +6,8 @@ from topicc.data import train_test_split
 
 def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # constants TODO: move to args
-    lr = 0.0001
-    epochs = 1000
+    lr = 0.001
+    epochs = 1
     batch_size = 32
     clip_grad = 5
     report_batch = 10
@@ -15,13 +15,14 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # set up the batch data
     # TODO: train/test split
     train_dataset, test_dataset = train_test_split(dataset, test_prop=0.001)
-    dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, #shuffle=True,
+        sampler=torch.utils.data.WeightedRandomSampler(dataset.weights(), len(dataset.weights()))
+    )
     print(len(test_dataset))
 
     # set the model to training mode
     topicc.train()
-
-    loss_fn = torch.nn.NLLLoss()
 
     optimizer = torch.optim.Adam(topicc.parameters(), lr=lr)
     current_loss = 0
@@ -29,13 +30,13 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     for i_epoch in range(epochs):
         for i_batch, (sequences, labels) in enumerate(dataloader):
             optimizer.zero_grad()
-            loss = loss_fn(topicc(sequences), labels)
+            loss = topicc.loss(sequences, labels)
             current_loss += loss
             loss.backward()
-            _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
+            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
 
-            if i_epoch % report_batch == 0:
+            if i_batch % report_batch == 0:
                 print(f"epoch:{i_epoch}  batch:{i_batch}  loss:{current_loss / report_batch}")
                 # topicc.eval()
                 # preds = topicc.predict(sequences[0:2])
@@ -49,7 +50,7 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
                 # for seq, actual, pred in examples:
                 #     print(f"----\n{seq[0:100]} \nactual:{actual} | pred:{pred}\n----")
 
-            if i_epoch % (report_batch*10) == 0:
+            if i_batch % (report_batch*10) == 0:
                 topicc.eval()
                 preds = topicc.predict(sequences[0:5])
                 topicc.train()
