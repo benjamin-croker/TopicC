@@ -32,6 +32,7 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
         self.category_to_label_map = load_category_labels(category_labels_fn)
         self.summaries = load_summaries(summaries_fn)
         self.categories = load_categories(categories_fn)
+
         # remove any empty sequences, or ones with no label mapping
         self.summaries, self.categories = zip(*[
             (summary, category) for summary, category in zip(self.summaries, self.categories)
@@ -41,10 +42,8 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
         self.label_to_category_map = {
             self.category_to_label_map[c]: c for c in self.category_to_label_map
         }
-        self.labels = torch.tensor(
-            [self.category_to_label_map[c] for c in self.categories],
-            dtype=torch.long
-        )
+        self.labels = [self.category_to_label_map[c] for c in self.categories]
+        self.n_labels = len(self.category_to_label_map)
 
     def __len__(self):
         return len(self.labels)
@@ -52,15 +51,8 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         return self.summaries[index], self.labels[index]
 
-    def labels_to_categories(self, labels: torch.Tensor):
-        labels = labels.tolist()
+    def labels_to_categories(self, labels: List[int]) -> List[str]:
         return [self.label_to_category_map[label] for label in labels]
-
-    def n_labels(self):
-        return len(self.category_to_label_map)
-
-    def weights(self):
-        return [1/torch.sum(self.labels==label) for label in self.labels]
 
 
 def train_test_split(wiki_va_l5_dataset: WikiVALvl5Dataset,

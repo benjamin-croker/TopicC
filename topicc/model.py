@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -50,61 +50,73 @@ class TopicB(nn.Module):
         return pred.squeeze()
 
 
-
 class TopicC(nn.Module):
     def __init__(self,
+                 embed_size,
                  output_size,
                  enc_hidden_size,
-                 attention_size,
-                 dense_size,
-                 dropout_rate=0.2,
-                 # arguments for the bpemb model
-                 dim=300, lang="en", vs=100000):
+                 # attention_size,
+                 # dense_size,
+                 # dropout_rate=0.2
+                 ):
         super(TopicC, self).__init__()
         print("init TopicC model...")
 
+        self._device = 'cpu'
+
         # todo: factor out params
-        self.embedding_model = spacy.load("en_core_web_lg", disable=['tagger', 'parser', 'ner'])
+        self.embedding_model = BPEmb(dim=embed_size, lang="en", vs=100000)
         print("loaded language model")
-        self.encoder = nn.LSTM(
-            input_size=dim,
+        self.encoder = nn.GRU(
+            input_size=embed_size,
             hidden_size=enc_hidden_size,
             num_layers=2,
             bidirectional=True
         )
-        # 2* since lstm is bi-directional
+        # 2* since GRU is bi-directional
         # self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
         # self.att_to_pointer_map = nn.Linear(attention_size, 1, bias=False)
         self.seq_to_dense_map = nn.Linear(2 * enc_hidden_size, output_size, bias=False)
         # self.dense_to_output_map = nn.Linear(dense_size, output_size, bias=False)
         # self.dropout = nn.Dropout(dropout_rate)
 
-    def embed_sequence(self, sequence: str) -> torch.Tensor:
-        return torch.tensor([t.vector for t in self.embedding_model(sequence)]).cuda()
+    def use_device(self, device):
+        self.to(device)
+        self._device = device
 
-    @staticmethod
-    def pack_seq_vecs(seq_vecs: List[torch.Tensor]) -> rnn.PackedSequence:
-        # adds zero vectors as padding
-        seq_vec_pad = rnn.pad_sequence(seq_vecs)
-        # pack them suitable for an LSTM or other RNN
-        return rnn.pack_padded_sequence(
-            seq_vec_pad, lengths=[v.shape[0] for v in seq_vecs]
-        )
+    def embed_sequence(self, sequence: str) -> torch.Tensor:
+        v_ids = self.embedding_model.encode_ids(sequence)
+        return torch.tensor(self.embedding_model.vectors[v_ids]).to(self._device)
+
+    def create_seq_vecs(self, sequences: List[str]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        # returns the padded seq vector, lengths and original order index
+        # sequences are sorted by length, and can be reverted to their original
+        # order with the unsorting index vector
+
+        # start by embedding the sequence vectors
+        seq_vecs = [self.embed_sequence(s) for s in sequences]
+
+        # sort lengths and set the device
+        lengths = torch.tensor([seq_v.shape[0] for seq_v in seq_vecs])
+        lengths, sort_i = lengths.sort(descending=True)
+        _, orig_i = sort_i.sort()
+
+        # pad the seq vecs and sort by length (dim 2 is the batch dimension)
+        seq_vec_pad = rnn.pad_sequence(seq_vecs).to(self._device)
+        seq_vec_pad = seq_vec_pad[:, sort_i, :]
+
+        return seq_vec_pad, lengths, orig_i
 
     def forward(self, sequences: List[str]) -> torch.Tensor:
         # Make the word embeddings for each sequence
-        # list of Tensors of dim seq_len, embed_size
-        seq_vecs = [self.embed_sequence(s) for s in sequences]
-        # sort in descending order of length
-        seq_vecs = sorted(seq_vecs, key=len)[::-1]
-        seq_last = [len(seq_vec)-1 for seq_vec in seq_vecs]
-        # pack the sequence for the LSTM
-        #TODO: let user set this
-        packed_seq_vecs = self.pack_seq_vecs(seq_vecs)
-        packed_seq_vecs = packed_seq_vecs.cuda()
+        pad_seq_vecs, lengths, orig_i = self.create_seq_vecs(sequences)
 
-        # run through the LSTM
-        enc_outputs, (h_n, _) = self.encoder(packed_seq_vecs)
+        # pack the sequence for the GRU
+        # packed_seq_vecs.shape = max_seq_len, batch_size, embedding_dim
+        packed_seq_vecs = rnn.pack_padded_sequence(pad_seq_vecs, lengths)
+
+        # run through the GRU
+        enc_outputs, h_n = self.encoder(packed_seq_vecs)
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
@@ -156,11 +168,15 @@ class TopicC(nn.Module):
         # dense.shape = batch_size, n_categories
         output = self.seq_to_dense_map(seq_output)
 
+        # sort the output to match the original order
+        output = output[orig_i, :]
+
         return nn.functional.log_softmax(output, dim=1)
 
-    def loss(self, sequences: List[str], target: torch.Tensor):
+    def loss(self, sequences: List[str], labels: torch.Tensor):
         pred_probs = self.forward(sequences)
-        return nn.functional.nll_loss(pred_probs, target, reduction='mean')
+        labels = labels.to(self._device)
+        return nn.functional.nll_loss(pred_probs, labels, reduction='mean')
 
     def predict(self, sequences: List[str]):
         _, pred = self.forward(sequences).topk(1)

@@ -15,14 +15,9 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # set up the batch data
     # TODO: train/test split
     print("setting up dataloader...")
-    train_dataset, test_dataset = train_test_split(dataset, test_prop=0.001)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size,
-        # shuffle=True
-        sampler=torch.utils.data.WeightedRandomSampler(dataset.weights(), len(dataset.weights()))
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    topicc.cuda()
+    topicc.use_device('cuda:0')
 
     # set the model to training mode
     topicc.train()
@@ -35,24 +30,23 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     print("train start")
     for i_epoch in range(epochs):
         for i_batch, (sequences, labels) in enumerate(dataloader):
-            labels = labels.cuda()
             optimizer.zero_grad()
             loss = topicc.loss(sequences, labels)
             current_loss += loss
-            
+
             loss.backward()
-            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters()(), clip_grad)
+            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
 
             topicc.eval()
             preds = topicc.predict(sequences)
             topicc.train()
             n_total += len(preds)
-            n_correct += sum(preds == labels)
+            n_correct += sum(preds.to('cpu') == labels)
 
             if i_batch and i_batch % report_batch == 0:
                 print(f"epoch:{i_epoch}  batch:{i_batch}  loss:{current_loss / report_batch}")
-                print(100*n_correct/float(n_total), '%')
+                print(100 * n_correct / float(n_total), '%')
                 current_loss = 0
                 n_total = 0
                 n_correct = 0
