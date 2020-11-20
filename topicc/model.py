@@ -173,11 +173,11 @@ class TopicC(nn.Module):
 
         return nn.functional.log_softmax(output, dim=1)
 
-    def loss(self, sequences: List[str], labels: torch.Tensor):
-        pred_probs = self.forward(sequences)
+    def loss(self, log_prob: torch.Tensor, labels: torch.Tensor):
         labels = labels.to(self._device)
-        return nn.functional.nll_loss(pred_probs, labels, reduction='mean')
+        return nn.functional.nll_loss(log_prob, labels, reduction='sum')
 
-    def predict(self, sequences: List[str]):
-        _, pred = self.forward(sequences).topk(1)
+    @staticmethod
+    def predict(log_prob: torch.Tensor) -> torch.Tensor:
+        _, pred = log_prob.topk(1)
         return pred.squeeze()
