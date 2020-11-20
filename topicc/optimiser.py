@@ -23,7 +23,7 @@ def evaluate_model(topicc: TopicC, dataloader: DataLoader) -> Tuple[float, float
 
             preds = topicc.predict(log_prob)
             n_samples += len(preds)
-            total_correct += int(torch.eq(preds.to('cpu'), labels.to('cpu'),).sum())
+            total_correct += int(torch.eq(preds.to('cpu'), labels.to('cpu'), ).sum())
 
             total_loss += topicc.loss(log_prob, labels)
 
@@ -36,13 +36,10 @@ def evaluate_model(topicc: TopicC, dataloader: DataLoader) -> Tuple[float, float
     return loss, accuracy
 
 
-def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
-    # constants TODO: move to args
-    lr = 0.0001
-    epochs = 1000
-    batch_size = 32
-    clip_grad = 10
-    n_batch_validate = 100
+def train(topicc: TopicC, dataset: WikiVALvl5Dataset,
+          epochs=4, batch_size=32, n_batch_validate=100,
+          lr=0.0001, clip_grad=10
+          ) -> TopicC:
 
     # set up the batch data
     # TODO: train/test split
@@ -52,7 +49,7 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
     # note that dataloader will return a tuple of strings for the sequences
     # and a 1-D float tensor for the labels in each batch
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=4*batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=4 * batch_size, shuffle=True)
 
     topicc.use_device('cuda:0')
 
@@ -74,7 +71,7 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset) -> TopicC:
             n_samples += len(sequences)
 
             loss.backward()
-            # _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
+            _ = torch.nn.utils.clip_grad_norm_(topicc.parameters(), clip_grad)
             optimizer.step()
 
             # index from 1 for counting number of batches
