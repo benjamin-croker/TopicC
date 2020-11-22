@@ -25,13 +25,13 @@ def load_category_labels(filename) -> dict:
 
 class WikiVALvl5Dataset(torch.utils.data.Dataset):
     def __init__(self,
-                 summaries_fn: str,
-                 categories_fn: str,
-                 category_labels_fn: str):
+                 summaries_file: str,
+                 categories_file: str,
+                 category_labels_file: str):
         print("init WikiVALvl5Dataset...")
-        self.category_to_label_map = load_category_labels(category_labels_fn)
-        self.summaries = load_summaries(summaries_fn)
-        self.categories = load_categories(categories_fn)
+        self.category_to_label_map = load_category_labels(category_labels_file)
+        self.summaries = load_summaries(summaries_file)
+        self.categories = load_categories(categories_file)
 
         # remove any empty sequences, or ones with no label mapping
         self.summaries, self.categories = zip(*[

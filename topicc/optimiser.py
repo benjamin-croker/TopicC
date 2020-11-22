@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 from torch.utils.data import DataLoader
 from topicc import TopicC, WikiVALvl5Dataset
-from topicc.data import train_test_split
+from topicc.dataset import train_test_split
 
 
 def evaluate_model(topicc: TopicC, dataloader: DataLoader) -> Tuple[float, float]:
@@ -41,8 +41,6 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset,
           lr=0.0001, clip_grad=10
           ) -> TopicC:
 
-    # set up the batch data
-    # TODO: train/test split
     print("setting up dataloader...")
     train_dataset, valid_dataset = train_test_split(dataset, test_prop=0.1)
 

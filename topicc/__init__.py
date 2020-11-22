@@ -1,2 +1,2 @@
-from .model import TopicC
-from .data import WikiVALvl5Dataset
+from .model import TopicC, TopicCDenseSpacy, TopicCEncBPemb, TopicCEncSimpleBPemb
+from .dataset import WikiVALvl5Dataset

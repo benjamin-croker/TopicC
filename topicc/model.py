@@ -87,7 +87,10 @@ class TopicCEncBPemb(TopicC):
         )
         # 2* since LSTM is bi-directional
         self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
-        self.att_to_pointer_map = nn.Linear(attention_size, 1, bias=False)
+        # The attention vector is used like the decoder states in the attention
+        # component in a seq-to-seq model, however it's a single, learnable
+        # vector in this case
+        self.att_vec = nn.Linear(attention_size, 1, bias=False)
         self.seq_to_dense_map = nn.Linear(4 * enc_hidden_size, dense_size)
         self.dense_to_output_map = nn.Linear(dense_size, output_size)
 
@@ -136,28 +139,27 @@ class TopicCEncBPemb(TopicC):
         for i, length in enumerate(lengths):
             enc_masks[length:, i, 0] = True
 
-        # att_vec.shape = max_seq_len, batch_size, attention_size
-        att_vec = self.enc_to_att_map(enc_outputs)
-        att_vec = torch.tanh(att_vec)
-        # pointer to the where attention is given to each index of the sequence
-        # pointer.shape = max_seq_len, batch_size, 1
-        pointer = self.att_to_pointer_map(att_vec)
+        # encoder outputs projected to the dimension of the attention vector
+        # att_proj.shape = max_seq_len, batch_size, attention_size
+        att_proj = self.enc_to_att_map(enc_outputs)
+        # weights to the where attention is given to each index of the sequence
+        # att_w.shape = max_seq_len, batch_size, 1
+        att_w = self.att_vec(att_proj)
         # mask out sections which are not part of the sequence
-        pointer = pointer.masked_fill(enc_masks, -float('inf'))
-        # pointer_w.shape = max_seq_len, batch_size, 1
-        # each slice pointer_w[:, seq_n, 0] will sum to 1, where the values
-        # indicate where the most attention should be paid
-        pointer_w = nn.functional.softmax(pointer, dim=0)
+        att_w = att_w.masked_fill(enc_masks, -float('inf'))
+        # att_w.shape = max_seq_len, batch_size, 1
+        # turn into a normalised probability with softmax
+        att_w = nn.functional.softmax(att_w, dim=0)
 
         # permute so the batch dimension is first instead of second
         # pointer_w.shape = batch_size, max_seq_len, 1
-        pointer_w = pointer_w.permute(1, 0, 2)
+        att_w = att_w.permute(1, 0, 2)
         # permute so the batch dimension is first, and seq_len dim is summed
         # enc_outputs.shape = batch_size, 2*enc_hidden_size, max_seq_len
         enc_outputs = enc_outputs.permute(1, 2, 0)
         # weighted sum of states
         # att_output.shape = batch_size, 2*enc_hidden_size, 1
-        att_output = torch.bmm(enc_outputs, pointer_w)
+        att_output = torch.bmm(enc_outputs, att_w)
         # remove the last dimension
         # att_output.shape = batch_size, 2*enc_hidden_size
         att_output = att_output.squeeze(dim=2)
