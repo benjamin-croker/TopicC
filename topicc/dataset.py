@@ -28,7 +28,7 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
                  summaries_file: str,
                  categories_file: str,
                  category_labels_file: str):
-        print("init WikiVALvl5Dataset...")
+        print("init: WikiVALvl5Dataset")
         self.category_to_label_map = load_category_labels(category_labels_file)
         self.summaries = load_summaries(summaries_file)
         self.categories = load_categories(categories_file)

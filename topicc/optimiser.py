@@ -1,4 +1,5 @@
 from typing import Tuple
+import os
 
 import torch
 from torch.utils.data import DataLoader
@@ -37,11 +38,11 @@ def evaluate_model(topicc: TopicC, dataloader: DataLoader) -> Tuple[float, float
 
 
 def train(topicc: TopicC, dataset: WikiVALvl5Dataset,
+          run_id: str, checkpoint_dir: str,
           epochs=4, batch_size=32, n_batch_validate=100,
           lr=0.0001, clip_grad=10
           ) -> TopicC:
-
-    print("setting up dataloader...")
+    print("init dataloader")
     train_dataset, valid_dataset = train_test_split(dataset, test_prop=0.1)
 
     # note that dataloader will return a tuple of strings for the sequences
@@ -49,12 +50,13 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset,
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=4 * batch_size, shuffle=True)
 
+    # set up the model for training
     topicc.use_device('cuda:0')
-
-    # set the model to training mode
     topicc.train()
 
     optimizer = torch.optim.Adam(topicc.parameters(), lr=lr)
+
+    best_valid_acc = 0
 
     print("train start")
     for i_epoch in range(epochs):
@@ -81,8 +83,23 @@ def train(topicc: TopicC, dataset: WikiVALvl5Dataset,
 
                 valid_loss, valid_acc = evaluate_model(topicc, valid_loader)
                 print(f"validation loss: {valid_loss}")
-                print(f"validation accuracy: {round(100 * valid_acc, 2)}%")
+                print(f"validation accuracy: {round(100 * valid_acc, 2)}% (best: {round(100 * best_valid_acc, 2)}%)")
 
+                # save a checkpoint
+                checkpoint = {
+                    'model_state_dict': topicc.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                }
+                torch.save(checkpoint, os.path.join(checkpoint_dir, f'{run_id}-checkpoint.pt'))
+
+                if valid_acc > best_valid_acc:
+                    torch.save(checkpoint, os.path.join(checkpoint_dir, f'{run_id}-best.pt'))
+                    best_valid_acc = valid_acc
+
+    # load the best model
+    checkpoint = torch.load(os.path.join(checkpoint_dir, f'{run_id}-best.pt'))
+    topicc.load_state_dict(checkpoint['model_state_dict'])
     # exit training mode
     topicc.eval()
+
     return topicc
