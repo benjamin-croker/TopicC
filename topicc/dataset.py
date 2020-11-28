@@ -23,19 +23,19 @@ def load_category_labels(filename) -> dict:
     return category_labels
 
 
-class WikiVALvl5Dataset(torch.utils.data.Dataset):
+class SeqCategoryDataset(torch.utils.data.Dataset):
     def __init__(self,
-                 summaries_file: str,
+                 sequences_file: str,
                  categories_file: str,
                  category_labels_file: str):
-        print("init: WikiVALvl5Dataset")
+        print("init: SeqCategoryDataset")
         self.category_to_label_map = load_category_labels(category_labels_file)
-        self.summaries = load_summaries(summaries_file)
+        self.sequences = load_summaries(sequences_file)
         self.categories = load_categories(categories_file)
 
         # remove any empty sequences, or ones with no label mapping
-        self.summaries, self.categories = zip(*[
-            (summary, category) for summary, category in zip(self.summaries, self.categories)
+        self.sequences, self.categories = zip(*[
+            (summary, category) for summary, category in zip(self.sequences, self.categories)
             if len(summary) > 0 and category in self.category_to_label_map
         ])
 
@@ -49,13 +49,13 @@ class WikiVALvl5Dataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     def __getitem__(self, index):
-        return self.summaries[index], self.labels[index]
+        return self.sequences[index], self.labels[index]
 
     def labels_to_categories(self, labels: List[int]) -> List[str]:
         return [self.label_to_category_map[label] for label in labels]
 
 
-def train_test_split(wiki_va_l5_dataset: WikiVALvl5Dataset,
+def train_test_split(wiki_va_l5_dataset: SeqCategoryDataset,
                      test_prop: float = 0.2, seed: int = None):
     n_test = int(len(wiki_va_l5_dataset) * test_prop)
     n_train = len(wiki_va_l5_dataset) - n_test

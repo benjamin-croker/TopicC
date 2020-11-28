@@ -1,2 +1,3 @@
-from .model import TopicC, TopicCDenseSpacy, TopicCEncBPemb, TopicCEncSimpleBPemb
-from .dataset import WikiVALvl5Dataset
+from .model import _TopicCBase, TopicCDenseSpacy, TopicCEncBPemb, TopicCEncSimpleBPemb
+from .dataset import SeqCategoryDataset
+from .topicc import train_topicc, save_topicc, load_topicc

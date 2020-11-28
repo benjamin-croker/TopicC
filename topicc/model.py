@@ -9,11 +9,10 @@ from bpemb import BPEmb
 import spacy
 
 
-class TopicC(nn.Module):
+class _TopicCBase(nn.Module):
     def __init__(self):
-        super(TopicC, self).__init__()
+        super(_TopicCBase, self).__init__()
         self._device = 'cpu'
-        self._init_params = {}
 
     def use_device(self, device):
         self.to(device)
@@ -27,21 +26,17 @@ class TopicC(nn.Module):
         # returns a list of sequence vectors
         pass
 
-    def init_params(self) -> dict:
-        # returns the params required to initialise the model
-        return self._init_params
-
     def loss(self, log_prob: torch.Tensor, labels: torch.Tensor):
         labels = labels.to(self._device)
         return nn.functional.nll_loss(log_prob, labels, reduction='sum')
 
     @staticmethod
-    def predict(log_prob: torch.Tensor) -> torch.Tensor:
-        _, pred = log_prob.topk(1)
+    def predict(log_prob: torch.Tensor, k=1) -> torch.Tensor:
+        _, pred = log_prob.topk(k)
         return pred.squeeze()
 
 
-class TopicCDenseSpacy(TopicC):
+class TopicCDenseSpacy(_TopicCBase):
     def __init__(self,
                  embed_size,
                  output_size,
@@ -49,13 +44,6 @@ class TopicCDenseSpacy(TopicC):
                  hidden2_size):
         super(TopicCDenseSpacy, self).__init__()
         print("init: TopicCDenseSpacy model")
-
-        self._init_params = {
-            'embed_size': embed_size,
-            'hidden1_size': hidden1_size,
-            'hidden2_size': hidden2_size,
-            'output_size': output_size
-        }
 
         # todo: factor out params
         self.embedding_model = spacy.load("en_core_web_lg", disable=['tagger', 'parser', 'ner'])
@@ -80,7 +68,7 @@ class TopicCDenseSpacy(TopicC):
         return nn.functional.log_softmax(output, dim=1)
 
 
-class TopicCEncBPemb(TopicC):
+class TopicCEncBPemb(_TopicCBase):
     def __init__(self,
                  embed_size,
                  output_size,
@@ -89,14 +77,6 @@ class TopicCEncBPemb(TopicC):
                  dense_size):
         super(TopicCEncBPemb, self).__init__()
         print("init: TopicCEncBPemb model")
-
-        self._init_params = {
-            'embed_size': embed_size,
-            'output_size': output_size,
-            'enc_hidden_size': enc_hidden_size,
-            'attention_size': attention_size,
-            'dense_size': dense_size
-        }
 
         self.embedding_model = BPEmb(dim=embed_size, lang="en", vs=100000)
         self.encoder = nn.LSTM(
@@ -202,19 +182,13 @@ class TopicCEncBPemb(TopicC):
         return nn.functional.log_softmax(output, dim=1)
 
 
-class TopicCEncSimpleBPemb(TopicC):
+class TopicCEncSimpleBPemb(_TopicCBase):
     def __init__(self,
                  embed_size,
                  output_size,
                  enc_hidden_size):
         super(TopicCEncSimpleBPemb, self).__init__()
         print("init: TopicCEncSimpleBPemb model")
-
-        self._init_params = {
-            'embed_size': embed_size,
-            'output_size': output_size,
-            'enc_hidden_size': enc_hidden_size
-        }
 
         self.embedding_model = BPEmb(dim=embed_size, lang="en", vs=100000)
         self.encoder = nn.GRU(
@@ -264,20 +238,3 @@ class TopicCEncSimpleBPemb(TopicC):
         output = output[orig_i, :]
 
         return nn.functional.log_softmax(output, dim=1)
-
-
-def save_topicc(topicc: TopicC, filename):
-    torch.save(
-        {
-            'init_params': topicc.init_params(),
-            'state_dict': topicc.state_dict()
-        },
-        filename
-    )
-
-
-def load_topicc(topicc_class, filename):
-    params = torch.load(filename)
-    topicc = topicc_class(**params['init_params'])
-    topicc.load_state_dict(params['state_dict'])
-    return topicc

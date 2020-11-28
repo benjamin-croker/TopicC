@@ -132,18 +132,18 @@ def get_subpage_summaries(titles, n_req_limit=N_REQ_LIMIT, t_req_limit=T_REQ_LIM
 
 
 def write_files(categories, titles, summaries):
-    with open(os.path.join('../data', 'categories.txt'), 'w') as f:
+    with open(os.path.join('../data', 'wikiVAlvl5_categories.txt'), 'w') as f:
         f.writelines([(t + '\n') for t in categories])
 
-    with open(os.path.join('../data', 'titles.txt'), 'w') as f:
+    with open(os.path.join('../data', 'wikiVAlvl5_titles.txt'), 'w') as f:
         f.writelines([(t + '\n') for t in titles])
 
-    with open(os.path.join('../data', 'summaries.txt'), 'w') as f:
+    with open(os.path.join('../data', 'wikiVAlvl5_summaries.txt'), 'w') as f:
         f.writelines([(s + '\n') for s in summaries])
 
     categories_unique = set(categories)
     category_labels = {c: i for i, c in enumerate(categories_unique)}
-    with open(os.path.join('../data', 'category_labels.json'), 'w') as f:
+    with open(os.path.join('../data', 'wikiVAlvl5_category_labels.json'), 'w') as f:
         json.dump(category_labels, f, indent=2)
 
 
