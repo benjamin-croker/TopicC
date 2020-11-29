@@ -1,13 +1,13 @@
 # TopicC
-TopicC is a library of models categorising text sequences.
+TopicC is a library of models for categorising text sequences.
 
 ## Training
 
 Training is performed by `topicc.train_topicc(params)`. This function takes
 a dictionary with all parameters specifying the model and training details.
 
-
-For an example see `scripts/train_example.py`
+For an example see `scripts/train_example.py`. This script requires
+the Wikipedia Vital Article dataset to be downloaded.
 
 ```python
 #scripts/train_example.py
@@ -51,13 +51,23 @@ The example model can be trained with
 $ python -m scripts.train_example
 ```
 
-Note that the Wikipedia Vital Article dataset will need to be downloaded first.
+Trained models are stored in the 'output/' folder, with a filename
+matching the `model_id` parameter, and a `.topicc` extension.
 
 ## Using a trained model
-After building the model, it can be used in interactive mode with the `predict_example` script.
+After building the model, it can be used by loading the output file:
 
-Below is an example classifying some text from the
+```
+model = topicc.load_model('example.topicc')
+model.predict("Example text")
+```
+
+See `scripts\predict_example.py`.
+
+Below is a demonstations classifying some text from the
 [Wikipedia Article on Suwon](https://en.wikipedia.org/wiki/Suwon).
+
+This uses the model trained by `scripts\train_example.py`.
 
 ```
 $ python -m scripts.predict_example
@@ -111,3 +121,30 @@ This model requires the following `model_params`.
 * `attention_size`: Dimension of the attention vector
 * `dense_size`: Dimension of the dense layer
 * `output_size`: number of possible categories
+
+## Datasets
+TopicC requires 3 files for training the model. These are specified
+by `dataset_params`.
+
+* `sequences_file`: Text file with one text sequence per line
+* `categories_file`: Text file with the corresponding categories
+* `category_labels_file`: JSON file mapping category names to integer labels
+
+The script `scripts/download_summaries.py` will construct an example dataset
+using the summaries of the
+[English Wikipedia 50000 Vital Ariticles.](https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/5)
+
+The script will rate limit queries in compliance with the
+[Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/)
+use. Please respect the limits.
+
+## Training Parameters
+
+The following `optimiser_params` can be set. To use the defaults,
+set `optimiser_params : {}` to an empty dictionary.
+
+* `epochs`: Number of iterations through the training set
+* `batch_size`: Number of examples per batch
+* `n_batch_validate`: Evaluate performance on the validation set every n batches
+* `lr`: Learning rate
+* `clip_grad`: Gradient clipping to prevent large weight changes per batch
