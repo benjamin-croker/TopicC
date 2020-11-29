@@ -1,6 +1,6 @@
 import uuid
 import os
-import json
+from typing import List
 
 import torch
 from topicc import dataset, model, optimiser
@@ -25,7 +25,9 @@ class TopicC(object):
             category_to_label_map[c]: c for c in category_to_label_map
         }
 
-    def predict(self, sequence, top_k=2):
+    def predict(self, sequence, top_k=2) -> List[str]:
+        if len(sequence) == 0:
+            return []
         log_prob = self.model([sequence])
         preds = self.model.predict(log_prob, top_k)
         return [self.label_to_category_map[int(pred)] for pred in preds.tolist()]
@@ -41,7 +43,7 @@ def save_topicc(params: dict, topicc_model: _TopicCBase, filename):
     )
 
 
-def load_topicc(filename):
+def load_topicc(filename: str) -> TopicC:
     topicc_spec = torch.load(filename)
     topicc_model = TopicC(
         model_type=topicc_spec['params']['model_type'],
@@ -54,9 +56,11 @@ def load_topicc(filename):
     return topicc_model
 
 
-def train_topicc(params, model_id=None):
+def train_topicc(params: dict):
+    model_id = params.get('model_id')
     if model_id is None:
         model_id = str(uuid.uuid1())
+        params['model_id'] = model_id
 
     print(f'start: {model_id}')
     topicc_model = MODEL_LOOKUP[params['model_type']](**params['model_params'])

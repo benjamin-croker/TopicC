@@ -1,6 +1,4 @@
 beautifulsoup4==4.9.3
 bpemb==0.3.2
 torch==1.7.0
-torchaudio==0.7.0
-torchvision==0.8.1
 spacy==2.3.2
