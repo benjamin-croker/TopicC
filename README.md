@@ -6,49 +6,39 @@ TopicC is a library of models for categorising text sequences.
 Training is performed by `topicc.train_topicc(params)`. This function takes
 a dictionary with all parameters specifying the model and training details.
 
-For an example see `scripts/train_example.py`. This script requires
-the Wikipedia Vital Article dataset to be downloaded.
+If the Wikipedia Vital Article dataset has been downloaded,
+the example model can be trained with:
 
-```python
-#scripts/train_example.py
+```
+$ python -m topicc.train example_params.json
+```
 
-from topicc import train_topicc
+Where the `example_params.json` file contains:
 
-params = {
-    'model_type': 'TopicCEncBPemb',
-    'model_id': 'example',
-    'model_params': {
-        'embed_size': 300,
-        'enc_hidden_size': 256,
-        'attention_size': 128,
-        'dense_size': 64,
-        'output_size': 30
-    },
-    'dataset_params': {
-        'sequences_file': 'data/wikiVAlvl5_summaries.txt',
-        'categories_file': 'data/wikiVAlvl5_categories.txt',
-        'category_labels_file': 'data/wikiVAlvl5_category_labels.json'
-    },
-    'optimiser_params': {
-        'epochs': 4,
-        'batch_size': 32,
-        'n_batch_validate': 100,
-        'lr': 0.0001,
-        'clip_grad': 10
-    }
+```json
+{
+  "model_type": "TopicCEncBPemb",
+  "model_id": "example",
+  "model_params": {
+    "embed_size": 300,
+    "enc_hidden_size": 256,
+    "attention_size": 128,
+    "dense_size": 64,
+    "output_size": 30
+  },
+  "dataset_params": {
+    "sequences_file": "data/wikiVAlvl5_summaries.txt",
+    "categories_file": "data/wikiVAlvl5_categories.txt",
+    "category_labels_file": "data/wikiVAlvl5_category_labels.json"
+  },
+  "optimiser_params": {
+    "epochs": 4,
+    "batch_size": 32,
+    "n_batch_validate": 100,
+    "lr": 0.0001,
+    "clip_grad": 10
+  }
 }
-
-def main():
-    train_topicc(params, model_id='example')
-
-if __name__ == '__main__':
-    main()
-```
-
-The example model can be trained with 
-
-```
-$ python -m scripts.train_example
 ```
 
 Trained models are stored in the 'output/' folder, with a filename
