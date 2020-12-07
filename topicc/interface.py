@@ -65,11 +65,18 @@ def train_topicc(params: dict):
     print(f'start: {model_id}')
     topicc_model = MODEL_LOOKUP[params['model_type']](**params['model_params'])
     seq_cat_dataset = dataset.SeqCategoryDataset(**params['dataset_params'])
+
+    # make sure the output directories exist
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     topicc_model = optimiser.train(
         topicc_model, seq_cat_dataset,
         model_id, CHECKPOINT_DIR,
         **params['optimiser_params']
     )
-    save_topicc(params, topicc_model, os.path.join('output', f'{model_id}.topicc'))
+    save_topicc(
+        params, topicc_model, os.path.join(OUTPUT_DIR, f'{model_id}.topicc')
+    )
 
     print('done')
