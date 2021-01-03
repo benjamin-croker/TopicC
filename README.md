@@ -112,7 +112,7 @@ This model requires the following `model_params`.
 * `dense_size`: Dimension of the dense layer
 * `output_size`: number of possible categories
 
-## Datasets
+## Topic Classification Datasets
 TopicC requires 3 files for training the model. These are specified
 by `dataset_params`.
 
@@ -127,6 +127,15 @@ using the summaries of the
 The script will rate limit queries in compliance with the
 [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/)
 use. Please respect the limits.
+
+## Wikipedia Article and Title Dataset
+The blog post
+["The Unknown Perils of Mining Wikipedia"](https://blog.lateral.io/2015/06/the-unknown-perils-of-mining-wikipedia/)
+has a link to a dataset of the text and tiles of all Wikipedia articles
+with at least 20 pag views from October 2013.
+
+https://storage.googleapis.com/lateral-datadumps/wikipedia_utf8_filtered_20pageviews.csv.gz
+
 
 ## Training Parameters
 
