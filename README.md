@@ -128,7 +128,7 @@ The script will rate limit queries in compliance with the
 [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/)
 use. Please respect the limits.
 
-## Wikipedia Article and Title Dataset
+## Article and Summary/Title Datasets
 The blog post
 ["The Unknown Perils of Mining Wikipedia"](https://blog.lateral.io/2015/06/the-unknown-perils-of-mining-wikipedia/)
 has a link to a dataset of the text and tiles of all Wikipedia articles
@@ -136,6 +136,8 @@ with at least 20 pag views from October 2013.
 
 https://storage.googleapis.com/lateral-datadumps/wikipedia_utf8_filtered_20pageviews.csv.gz
 
+The Kaggle ["All the News"](https://www.kaggle.com/snapcrack/all-the-news)
+contains ~ 150 000 news articles with their titles.
 
 ## Training Parameters
 
