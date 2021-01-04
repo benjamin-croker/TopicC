@@ -120,21 +120,39 @@ by `dataset_params`.
 * `categories_file`: Text file with the corresponding categories
 * `category_labels_file`: JSON file mapping category names to integer labels
 
-The script `scripts/download_summaries.py` will construct an example dataset
+The script `scripts/download_wikiVAlvl5.py` will construct an example dataset
 using the summaries of the
 [English Wikipedia 50000 Vital Ariticles.](https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/5)
+
+Run using
+```
+$ python -m scripts.download_wikiVAlvl5
+```
 
 The script will rate limit queries in compliance with the
 [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/)
 use. Please respect the limits.
 
-## Article and Summary/Title Datasets
+## Wikipedia Article and Title Dataset
 The blog post
 ["The Unknown Perils of Mining Wikipedia"](https://blog.lateral.io/2015/06/the-unknown-perils-of-mining-wikipedia/)
 has a link to a dataset of the text and tiles of all Wikipedia articles
 with at least 20 pag views from October 2013.
 
 https://storage.googleapis.com/lateral-datadumps/wikipedia_utf8_filtered_20pageviews.csv.gz
+
+If the extracted csv file is placed in `data/documents_utf8_filtered_20pageviews.csv`,
+then the script `scripts/process_wiki20views.py` will construct a dataset with
+files for the articles and titles.
+
+Run using
+```
+$ python -m scripts.process_wiki20views
+```
+
+In many cases the articles start with the title. These are removed from the article text.
+
+## News Dataset
 
 The Kaggle ["All the News"](https://www.kaggle.com/snapcrack/all-the-news)
 contains ~ 150 000 news articles with their titles.

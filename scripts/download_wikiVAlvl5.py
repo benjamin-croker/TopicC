@@ -42,6 +42,12 @@ T_REQ_LIMT = 1
 WIKI_VA_L5_URL = 'https://en.wikipedia.org/wiki/Wikipedia:Vital_articles/Level/5'
 WIKI_TITLE_SUMMARY_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary/{}'
 WIKI_URL = 'https://en.wikipedia.org'
+# file outputs
+BASE_DIR = os.path.dirname(os.path.dirname( __file__ ))
+OUTPUT_FILENAME_CATEGORIES = os.path.join('data', 'wikiVAlvl5_categories.txt')
+OUTPUT_FILENAME_SUMMARIES = os.path.join('data', 'wikiVAlvl5_summaries.txt')
+OUTPUT_FILENAME_TITLES = os.path.join('data', 'wikiVAlvl5_titles.txt')
+OUTPUT_FILENAME_CATEGORY_LABELS = os.path.join('data', 'wikiVAlvl5_category_labels.json')
 
 
 def get_url(url, max_retries=2):
@@ -132,18 +138,19 @@ def get_subpage_summaries(titles, n_req_limit=N_REQ_LIMIT, t_req_limit=T_REQ_LIM
 
 
 def write_files(categories, titles, summaries):
-    with open(os.path.join('../data', 'wikiVAlvl5_categories.txt'), 'w') as f:
+    with open(OUTPUT_FILENAME_CATEGORIES, 'w') as f:
         f.writelines([(t + '\n') for t in categories])
 
-    with open(os.path.join('../data', 'wikiVAlvl5_titles.txt'), 'w') as f:
+    with open(OUTPUT_FILENAME_TITLES, 'w') as f:
         f.writelines([(t + '\n') for t in titles])
 
-    with open(os.path.join('../data', 'wikiVAlvl5_summaries.txt'), 'w') as f:
+    with open(OUTPUT_FILENAME_SUMMARIES, 'w') as f:
         f.writelines([(s + '\n') for s in summaries])
 
     categories_unique = set(categories)
     category_labels = {c: i for i, c in enumerate(categories_unique)}
-    with open(os.path.join('../data', 'wikiVAlvl5_category_labels.json'), 'w') as f:
+
+    with open(OUTPUT_FILENAME_CATEGORY_LABELS, 'w') as f:
         json.dump(category_labels, f, indent=2)
 
 
