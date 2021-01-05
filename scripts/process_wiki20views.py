@@ -6,7 +6,7 @@ import os
 INPUT_FILENAME_WIKI_20_VIEWS = os.path.join('data', 'documents_utf8_filtered_20pageviews.csv')
 OUTPUT_DIR = os.path.join('data', 'wiki20views')
 
-STRIP_TITLE_FROM_ARTICLE = True
+STRIP_TITLE_FROM_ARTICLE = False
 ARTICLES_PER_FILE = 10000
 
 # Needs to be set to > max article length in chars

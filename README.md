@@ -141,7 +141,7 @@ with at least 20 pag views from October 2013.
 
 https://storage.googleapis.com/lateral-datadumps/wikipedia_utf8_filtered_20pageviews.csv.gz
 
-If the extracted csv file is placed in `data/documents_utf8_filtered_20pageviews.csv`,
+If the extracted CSV file is placed in `data/documents_utf8_filtered_20pageviews.csv`,
 then the script `scripts/process_wiki20views.py` will construct a dataset with
 files for the articles and titles.
 
@@ -156,6 +156,15 @@ In many cases the articles start with the title. These are removed from the arti
 
 The Kaggle ["All the News"](https://www.kaggle.com/snapcrack/all-the-news)
 contains ~ 150 000 news articles with their titles.
+
+If the individual CSV files are extracted to `data/` then the script
+`scripts/process_allTheNews.py` will construct a dataset with
+files for the articles and titles.
+
+Run using
+```
+$ python -m scripts.process_allTheNews
+```
 
 ## Training Parameters
 
