@@ -1,26 +1,27 @@
-from typing import List
+from typing import List, Union
 import json
 
 import torch
 import torch.utils.data
 
 
-def load_summaries(filename) -> List[str]:
+def _load_text_file(filename) -> List[str]:
     with open(filename, encoding='utf-8') as f:
-        sequences = [s.replace('\n', '') for s in f.readlines()]
-    return sequences
+        data = [s.replace('\n', '') for s in f.readlines()]
+    return data
 
 
-def load_categories(filename) -> List[str]:
+def _load_json_file(filename) -> dict:
     with open(filename, encoding='utf-8') as f:
-        categories = [s.replace('\n', '') for s in f.readlines()]
-    return categories
+        data = json.load(f)
+    return data
 
 
-def load_category_labels(filename) -> dict:
-    with open(filename, encoding='utf-8') as f:
-        category_labels = json.load(f)
-    return category_labels
+# application-specific names for external use
+load_sequences = _load_text_file
+load_categories = _load_text_file
+load_keywords = _load_text_file
+load_category_labels = _load_json_file
 
 
 class SeqCategoryDataset(torch.utils.data.Dataset):
@@ -30,7 +31,7 @@ class SeqCategoryDataset(torch.utils.data.Dataset):
                  category_labels_file: str):
         print("init: SeqCategoryDataset")
         self.category_to_label_map = load_category_labels(category_labels_file)
-        self.sequences = load_summaries(sequences_file)
+        self.sequences = load_sequences(sequences_file)
         self.categories = load_categories(categories_file)
 
         # remove any empty sequences, or ones with no label mapping
@@ -55,10 +56,29 @@ class SeqCategoryDataset(torch.utils.data.Dataset):
         return [self.label_to_category_map[label] for label in labels]
 
 
-def train_test_split(wiki_va_l5_dataset: SeqCategoryDataset,
+class SeqKeywordsDataset(torch.utils.data.Dataset):
+    def __init__(self,
+                 sequences_file: str,
+                 keywords_file: str):
+        print("init: SeqKeywordsDataset")
+        self.sequences = load_sequences(sequences_file)
+        self.keywords = load_keywords(keywords_file)
+        # convert to a set for fast lookups and duplicate removal
+        self.keywords = [set(keyword.lower().split()) for keyword in self.keywords]
+
+    def __len__(self):
+        return len(self.keywords)
+
+    def __getitem__(self, index):
+        seq = self.sequences[index].lower().split()
+        labels = [word in self.keywords[index] for word in seq]
+        return seq, labels
+
+
+def train_test_split(dataset: Union[SeqCategoryDataset, SeqKeywordsDataset],
                      test_prop: float = 0.2, seed: int = None):
-    n_test = int(len(wiki_va_l5_dataset) * test_prop)
-    n_train = len(wiki_va_l5_dataset) - n_test
+    n_test = int(len(dataset) * test_prop)
+    n_train = len(dataset) - n_test
 
     if seed is not None:
         generator = torch.Generator().manual_seed(seed)
@@ -66,5 +86,5 @@ def train_test_split(wiki_va_l5_dataset: SeqCategoryDataset,
         generator = None
 
     return torch.utils.data.random_split(
-        wiki_va_l5_dataset, [n_train, n_test], generator
+        dataset, [n_train, n_test], generator
     )
