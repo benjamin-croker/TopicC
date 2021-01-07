@@ -85,8 +85,13 @@ class TopicCEncBPemb(_TopicCBase):
             num_layers=2,
             bidirectional=True
         )
-        # 2* since LSTM is bi-directional
-        self.enc_to_att_map = nn.Linear(2 * enc_hidden_size, attention_size, bias=False)
+
+        self._lstm_layers = 2
+        self._lstm_directions = 2
+
+        self.enc_to_att_map = nn.Linear(
+            self._lstm_directions * enc_hidden_size, attention_size, bias=False
+        )
         # The attention vector is used like the decoder states in the attention
         # component in a seq-to-seq model, however it's a single, learnable
         # vector in this case
@@ -121,17 +126,22 @@ class TopicCEncBPemb(_TopicCBase):
         # Make the word embeddings for each sequence
         pad_seq_vecs, lengths, orig_i = self.create_seq_vecs(sequences)
 
-        # pack the sequence for the GRU
+        # pack the sequence for the LSTM
         # packed_seq_vecs.shape = max_seq_len, batch_size, embedding_dim
         packed_seq_vecs = rnn.pack_padded_sequence(pad_seq_vecs, lengths)
 
-        # run through the GRU
+        # run through the LSTM
+        # h_n.shape = num_layers*num_directions, batch, hidden_size
+        # Note from docs:
+        #   the layers can be separated using h_n.view(num_layers, num_directions, batch, hidden_size)
         enc_outputs, (h_n, _) = self.encoder(packed_seq_vecs)
+        h_n = h_n.view(self._lstm_layers, self._lstm_directions, h_n.shape[1], h_n.shape[2])
+
         # unpack the sequence
         # enc_outputs.shape = max_seq_len, batch_size, 2*enc_hidden_size
         enc_outputs, _ = nn.utils.rnn.pad_packed_sequence(enc_outputs)
 
-        # # encoder masks to indicate which parts of the sequence should be considered
+        # encoder masks to indicate which parts of the sequence should be considered
         enc_masks = torch.zeros(
             enc_outputs.shape[0], enc_outputs.shape[1], 1,
             dtype=torch.bool, device=self._device
@@ -165,7 +175,8 @@ class TopicCEncBPemb(_TopicCBase):
         att_output = att_output.squeeze(dim=2)
 
         # combine with the hidden states
-        seq_output = torch.cat((att_output, h_n[0], h_n[1]), dim=1)
+        # get the last layer index0 = -1 for both directions index1 = (0, 1)
+        seq_output = torch.cat((att_output, h_n[-1][0], h_n[-1][1]), dim=1)
 
         # have a dense non-linear layer
         # dense.shape = batch_size, dense_size
@@ -194,7 +205,7 @@ class TopicCEncSimpleBPemb(_TopicCBase):
         self.encoder = nn.GRU(
             input_size=embed_size,
             hidden_size=enc_hidden_size,
-            num_layers=2,
+            num_layers=1,
             bidirectional=True
         )
         self.seq_to_output_map = nn.Linear(2 * enc_hidden_size, output_size, bias=False)

@@ -57,7 +57,7 @@ See `scripts\predict_example.py`.
 Below is a demonstations classifying some text from the
 [Wikipedia Article on Suwon](https://en.wikipedia.org/wiki/Suwon).
 
-This uses the model trained by `scripts\train_example.py`.
+This uses the model trained by `python -m topicc.train example_params.json`.
 
 ```
 $ python -m scripts.predict_example
