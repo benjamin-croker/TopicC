@@ -8,6 +8,9 @@ from topicc.dataset import train_test_split
 
 
 def evaluate_model(topicc: _TopicCBase, dataloader: DataLoader) -> Tuple[float, float]:
+    # TODO: The training procedure will need to update to show Jaccard 
+    #       intersection / union score for KewordC sets instead of accuracy.
+
     # measures loss and accuracy
 
     train_state = topicc.training
