@@ -116,7 +116,7 @@ class TopicCEncBPemb(_TopicCBase):
         lengths, sort_i = lengths.sort(descending=True)
         _, orig_i = sort_i.sort()
 
-        # pad the seq vecs and sort by length (dim 2 is the batch dimension)
+        # pad the seq vecs and sort by length (dim 1 is the batch dimension)
         seq_vec_pad = rnn.pad_sequence(seq_vecs).to(self._device)
         seq_vec_pad = seq_vec_pad[:, sort_i, :]
 
@@ -184,7 +184,7 @@ class TopicCEncBPemb(_TopicCBase):
         dense = torch.tanh(dense)
 
         # final output layer
-        # dense.shape = batch_size, n_categories
+        # output.shape = batch_size, n_categories
         output = self.dense_to_output_map(dense)
 
         # sort the output to match the original order
@@ -234,6 +234,106 @@ class TopicCEncSimpleBPemb(_TopicCBase):
         return seq_vec_pad, lengths, orig_i
 
     def forward(self, sequences: List[str]) -> torch.Tensor:
+        # Make the word embeddings for each sequence
+        pad_seq_vecs, lengths, orig_i = self.create_seq_vecs(sequences)
+
+        # pack the sequence for the GRU
+        # packed_seq_vecs.shape = max_seq_len, batch_size, embedding_dim
+        packed_seq_vecs = rnn.pack_padded_sequence(pad_seq_vecs, lengths)
+
+        # run through the GRU
+        _, h_n = self.encoder(packed_seq_vecs)
+        seq_output = torch.cat((h_n[0], h_n[1]), dim=1)
+        output = self.seq_to_output_map(seq_output)
+        # sort the output to match the original order
+        output = output[orig_i, :]
+
+        return nn.functional.log_softmax(output, dim=1)
+
+
+class _KeywordCBase(nn.Module):
+    def __init__(self):
+        super(_TopicCBase, self).__init__()
+        self._device = 'cpu'
+
+    def use_device(self, device):
+        self.to(device)
+        self._device = device
+
+    def forward(self, sequences: List[List[str]]):
+        # Must return a list of probabilities with shape: batch_size, max_len
+        pass
+
+    def embed_sequence(self, sequence: str):
+        # returns a list of sequence vectors
+        pass
+
+    def loss(self, prob: torch.Tensor, labels: List[torch.tensor]):
+        lengths = [len(seq) for seq in labels]
+        labels = rnn.pad_sequence(labels, batch_first=True).to(self._device)
+
+        # masks to indicate which parts of the sequence should be considered
+        loss_mask = torch.zeros_like(labels, device=self._device, dtype=torch.bool)
+
+        for i, length in enumerate(lengths):
+            loss_mask[i, length:] = True
+
+        # Future TODO: use the version with logits, and have the model output a real number
+        return nn.functional.binary_cross_entropy(probs, labels).masked_fill(loss_mask, 0).sum()
+
+    @staticmethod
+    def predict(prob: torch.Tensor, k=1) -> torch.Tensor:
+        # TODO: This should take a threshold and return a mask indicating
+        #       which words in the sequence are keywords.
+        #       The training procedure will need to update to show Jaccard 
+        #       intersection / union score for the sets instead of accuracy.
+        pass
+
+#class TopicCEncSimpleBPemb(_TopicCBase):
+class KeywordCEncBPemb(_KeywordCBase):
+    def __init__(self,
+                 embed_size,
+                 output_size,
+                 enc_hidden_size):
+        super(KeywordCEncBPemb, self).__init__()
+        print("init: KeywordCEncBPemb model")
+
+        self.embedding_model = BPEmb(dim=embed_size, lang="en", vs=100000)
+        self.encoder = nn.GRU(
+            input_size=embed_size,
+            hidden_size=enc_hidden_size,
+            num_layers=1 ,
+            bidirectional=True
+        )
+        self.seq_to_output_map = nn.Linear(2 * enc_hidden_size, output_size, bias=False)
+
+    def embed_sequence(self, sequence: List[str]) -> torch.Tensor:
+        # sequence is a list of words (strings)
+        # average the per-word encoding vector
+        def _enc(word):
+            self.embedding_model.vectors[embedding_model.encode_ids(word)]
+        return torch.tensor([_enc(word).mean(axis=0) for word in seq]).to(self._device)
+
+    def create_seq_vecs(self, sequences: List[List[str]]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        # returns the padded seq vector, lengths and original order index
+        # sequences are sorted by length, and can be reverted to their original
+        # order with the unsorting index vector
+
+        # start by embedding the sequence vectors
+        seq_vecs = [self.embed_sequence(s) for s in sequences]
+
+        # sort lengths and set the device
+        lengths = torch.tensor([seq_v.shape[0] for seq_v in seq_vecs])
+        lengths, sort_i = lengths.sort(descending=True)
+        _, orig_i = sort_i.sort()
+
+        # pad the seq vecs and sort by length (dim 2 is the batch dimension)
+        seq_vec_pad = rnn.pad_sequence(seq_vecs).to(self._device)
+        seq_vec_pad = seq_vec_pad[:, sort_i, :]
+
+        return seq_vec_pad, lengths, orig_i
+
+    def forward(self, sequences: List[List[str]]) -> torch.Tensor:
         # Make the word embeddings for each sequence
         pad_seq_vecs, lengths, orig_i = self.create_seq_vecs(sequences)
 

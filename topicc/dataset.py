@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Tuple
 import json
 
 import torch
@@ -65,13 +65,16 @@ class SeqKeywordsDataset(torch.utils.data.Dataset):
         self.keywords = load_keywords(keywords_file)
         # convert to a set for fast lookups and duplicate removal
         self.keywords = [set(keyword.lower().split()) for keyword in self.keywords]
+        # TODO: consider removing stopwords
 
     def __len__(self):
         return len(self.keywords)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Tuple[List[str]], torch.tensor]:
         seq = self.sequences[index].lower().split()
-        labels = [word in self.keywords[index] for word in seq]
+        labels = torch.tensor(
+            [word in self.keywords[index] for word in seq], dtype=torch.int
+        )
         return seq, labels
 
 
