@@ -8,11 +8,13 @@ import torch.nn.utils.rnn as rnn
 from bpemb import BPEmb
 import spacy
 
+CPU_DEVICE = 'cpu'
+
 
 class _TopicCBase(nn.Module):
     def __init__(self):
         super(_TopicCBase, self).__init__()
-        self._device = 'cpu'
+        self._device = CPU_DEVICE
 
     def use_device(self, device):
         self.to(device)
@@ -251,10 +253,10 @@ class TopicCEncSimpleBPemb(_TopicCBase):
         return nn.functional.log_softmax(output, dim=1)
 
 
-class _KeywordCBase(nn.Module):
+class _TopicKeyBase(nn.Module):
     def __init__(self):
-        super(_KeywordCBase, self).__init__()
-        self._device = 'cpu'
+        super(_TopicKeyBase, self).__init__()
+        self._device = CPU_DEVICE
 
     def use_device(self, device):
         self.to(device)
@@ -271,8 +273,7 @@ class _KeywordCBase(nn.Module):
         pass
 
     def loss(self, logits: torch.Tensor, pad_mask: torch.Tensor, labels: List[torch.tensor]):
-        # TODO: Use the version with logits, and have the model output a real number.
-        #       Also note there may be a class imbalance problem, as most words will not be
+        # TODO: Note there may be a class imbalance problem, as most words will not be
         #       keywords. Maybe randomly downsample to words of each?
         labels = rnn.pad_sequence(labels, batch_first=True).to(self._device)
         bce_loss = nn.functional.binary_cross_entropy_with_logits(logits, labels)
@@ -285,13 +286,13 @@ class _KeywordCBase(nn.Module):
 
 
 # class TopicCEncSimpleBPemb(_TopicCBase):
-class KeywordCEncBPemb(_KeywordCBase):
+class TopicKeyEncBPemb(_TopicKeyBase):
     def __init__(self,
                  embed_size,
                  enc_hidden_size,
                  dense_size):
-        super(KeywordCEncBPemb, self).__init__()
-        print("init: KeywordCEncBPemb model")
+        super(TopicKeyEncBPemb, self).__init__()
+        print("init: TopicKeyEncBPemb model")
 
         self.embedding_model = BPEmb(dim=embed_size, lang="en", vs=100000)
         self.encoder = nn.LSTM(

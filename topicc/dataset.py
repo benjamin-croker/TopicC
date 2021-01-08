@@ -3,6 +3,7 @@ import json
 
 import torch
 import torch.utils.data
+import numpy as np
 
 
 def _load_text_file(filename) -> List[str]:
@@ -50,6 +51,8 @@ class SeqCategoryDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     def __getitem__(self, index):
+        # note that dataloader will return a tuple of strings for the sequences
+        # and a 1-D float tensor for the labels in each batch
         return self.sequences[index], self.labels[index]
 
     def labels_to_categories(self, labels: List[int]) -> List[str]:
@@ -66,15 +69,20 @@ class SeqKeywordsDataset(torch.utils.data.Dataset):
         # convert to a set for fast lookups and duplicate removal
         self.keywords = [set(keyword.lower().split()) for keyword in self.keywords]
         # TODO: consider removing stopwords
+    
+    @staticmethod
+    def collate_fn(batch):
+        seqs = [np.array(item[0]) for item in batch]
+        labels = [torch.tensor(item[1], dtype=torch.int) for item in batch]
+        return [seqs, labels]
 
     def __len__(self):
         return len(self.keywords)
 
-    def __getitem__(self, index) -> Tuple[List[str]], torch.tensor]:
+    def __getitem__(self, index) -> Tuple[torch.tensor, torch.tensor]:
+        print(self.keywords[index])
         seq = self.sequences[index].lower().split()
-        labels = torch.tensor(
-            [word in self.keywords[index] for word in seq], dtype=torch.int
-        )
+        labels = [word in self.keywords[index] for word in seq]
         return seq, labels
 
 

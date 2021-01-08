@@ -10,9 +10,30 @@ MODEL_LOOKUP = {
     'TopicCDenseSpacy': model.TopicCDenseSpacy,
     'TopicCEncSimpleBPemb': model.TopicCEncSimpleBPemb,
     'TopicCEncBPemb': model.TopicCEncBPemb,
+    'TopicKeyEncBPemb': model.TopicKeyEncBPemb,
 }
+DATASET_LOOKUP = {
+    'TopicCDenseSpacy': dataset.SeqCategoryDataset,
+    'TopicCEncSimpleBPemb': dataset.SeqCategoryDataset,
+    'TopicCEncBPemb': dataset.SeqCategoryDataset,
+    'TopicKeyEncBPemb': dataset.SeqKeywordsDataset
+}
+EVAL_FN_LOOKUP = {
+    'TopicCDenseSpacy': optimiser.evaluate_topicc_model,
+    'TopicCEncSimpleBPemb': optimiser.evaluate_topicc_model,
+    'TopicCEncBPemb': optimiser.evaluate_topicc_model,
+    'TopicKeyEncBPemb': optimiser.evaluate_topickey_model
+}
+EVAL_SCORE_LOOKUP = {
+    'TopicCDenseSpacy': 'accuracy',
+    'TopicCEncSimpleBPemb': 'accuracy',
+    'TopicCEncBPemb': 'accuracy',
+    'TopicKeyEncBPemb': 'Jaccard score'
+}
+
 CHECKPOINT_DIR = 'checkpoints'
 OUTPUT_DIR = 'output'
+CPU_DEVICE = 'cpu'
 
 
 class TopicC(object):
@@ -64,15 +85,17 @@ def train_topicc(params: dict):
 
     print(f'start: {model_id}')
     topicc_model = MODEL_LOOKUP[params['model_type']](**params['model_params'])
-    seq_cat_dataset = dataset.SeqCategoryDataset(**params['dataset_params'])
+    topicc_dataset = DATASET_LOOKUP[params['model_type']](**params['dataset_params'])
 
     # make sure the output directories exist
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     topicc_model = optimiser.train(
-        topicc_model, seq_cat_dataset,
+        topicc_model, topicc_dataset,
         model_id, CHECKPOINT_DIR,
+        eval_fn=EVAL_FN_LOOKUP[params['model_type']],
+        score_name=EVAL_SCORE_LOOKUP[params['model_type']],
         **params['optimiser_params']
     )
     save_topicc(
