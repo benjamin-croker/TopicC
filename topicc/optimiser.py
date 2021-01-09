@@ -54,7 +54,7 @@ def evaluate_topickey_model(topicc_model: _TopicKeyBase, dataloader: DataLoader)
     with torch.no_grad():
         for sequences, labels in dataloader:
             n_samples += len(labels)
-            n_samples += 1
+            n_jaccard += 1
 
             model_output = topicc_model(sequences)
             total_loss += topicc_model.loss(model_output, labels)
