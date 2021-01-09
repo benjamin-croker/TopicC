@@ -62,12 +62,16 @@ class SeqCategoryDataset(torch.utils.data.Dataset):
 class SeqKeywordsDataset(torch.utils.data.Dataset):
     def __init__(self,
                  sequences_file: str,
-                 keywords_file: str):
+                 keywords_file: str,
+                 # may need a max len to prevent issues with CUDA
+                 max_len = 1024):
         print("init: SeqKeywordsDataset")
         self.sequences = load_sequences(sequences_file)
         self.keywords = load_keywords(keywords_file)
         # convert to a set for fast lookups and duplicate removal
         self.keywords = [set(keyword.lower().split()) for keyword in self.keywords]
+
+        self.max_len = max_len
         # TODO: consider removing stopwords
     
     @staticmethod
@@ -80,8 +84,7 @@ class SeqKeywordsDataset(torch.utils.data.Dataset):
         return len(self.keywords)
 
     def __getitem__(self, index) -> Tuple[torch.tensor, torch.tensor]:
-        print(self.keywords[index])
-        seq = self.sequences[index].lower().split()
+        seq = self.sequences[index].lower().split()[0:self.max_len]
         labels = [word in self.keywords[index] for word in seq]
         return seq, labels
 

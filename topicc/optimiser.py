@@ -2,6 +2,7 @@ from typing import Tuple, Union, Callable
 import os
 
 import torch
+import torch.nn.utils.rnn as rnn
 from torch.utils.data import DataLoader
 
 from topicc import (
@@ -45,29 +46,38 @@ def evaluate_topickey_model(topicc_model: _TopicKeyBase, dataloader: DataLoader)
     topicc_model.eval()
 
     n_samples = 0
+    n_jaccard = 0
     total_loss = 0
     total_jaccard_score = 0
 
     # no_grad() signals backend to throw away all gradients
     with torch.no_grad():
-        for i, (sequences, labels) in dataloader:
-            logits, pad_mask = topicc_model(sequences)
-            preds = topicc_model.predict(logits, pad_mask)
-            total_loss += topicc_model.loss(logits, pad_mask, labels)
+        for sequences, labels in dataloader:
+            n_samples += len(labels)
+            n_samples += 1
 
-            for seq, label in zip(sequences, labels):
-                seqlen = len(sequences)
-                # use labels to select sets of keywords
-                kw_pred = set(seq[preds[i, 0:seqlen].to(CPU_DEVICE).type(torch.bool)])
-                kw_actual = set(seq[labels.type(torch.bool)])
-                total_jaccard_score += len(kw_pred.intersection(kw_actual))/len(kw_pred.union(kw_actual))
-                n_samples += 1
+            model_output = topicc_model(sequences)
+            total_loss += topicc_model.loss(model_output, labels)
+            # get the padded labels calculated in the loss
+            labels = topicc_model.cached_labels()
+            
+            preds = topicc_model.predict(model_output).bool()
+            # this is not really correct as it's looking at the total batch
+            # counts rather than set sizes per example, but it's much faster
+            # and gives an idea of the training performance
+            try:
+                total_jaccard_score += (
+                    torch.logical_and(labels, preds).sum().item() /
+                    torch.logical_or(labels, preds).sum().item()
+                )
+            except ZeroDivisionError:
+                pass
 
     if train_state:
         topicc_model.train()
 
     loss = total_loss / n_samples
-    avg_jaccard_score = total_jaccard_score / n_samples
+    avg_jaccard_score = total_jaccard_score / n_jaccard
 
     return loss, avg_jaccard_score
 
@@ -85,7 +95,7 @@ def train(topicc_model: Union[_TopicCBase, _TopicKeyBase],
           lr=0.0001,
           clip_grad=10,
           ) -> Union[_TopicCBase, _TopicKeyBase]:
-    train_dataset, valid_dataset = train_test_split(dataset, test_prop=0.1)
+    train_dataset, valid_dataset = train_test_split(dataset, test_prop=0.05)
 
     if hasattr(dataset, 'collate_fn'):
         collate_fn = dataset.collate_fn
@@ -114,8 +124,8 @@ def train(topicc_model: Union[_TopicCBase, _TopicKeyBase],
         n_samples = 0
         for i_batch, (sequences, labels) in enumerate(train_loader):
             optimizer.zero_grad()
-            log_prob = topicc_model(sequences)
-            loss = topicc_model.loss(log_prob, labels)
+            model_output = topicc_model(sequences)
+            loss = topicc_model.loss(model_output, labels)
             current_loss += loss
             n_samples += len(sequences)
 

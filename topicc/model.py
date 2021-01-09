@@ -257,6 +257,8 @@ class _TopicKeyBase(nn.Module):
     def __init__(self):
         super(_TopicKeyBase, self).__init__()
         self._device = CPU_DEVICE
+        # store calculated padded labels
+        self._cached_labels = torch.tensor([])
 
     def use_device(self, device):
         self.to(device)
@@ -272,15 +274,21 @@ class _TopicKeyBase(nn.Module):
         # returns a list of sequence vectors
         pass
 
-    def loss(self, logits: torch.Tensor, pad_mask: torch.Tensor, labels: List[torch.tensor]):
+    def cached_labels(self) -> torch.Tensor:
+        return self._cached_labels
+
+    def loss(self, preds: Tuple[torch.Tensor, torch.Tensor], labels: List[torch.tensor]):
+        logits, pad_mask = preds
         # TODO: Note there may be a class imbalance problem, as most words will not be
         #       keywords. Maybe randomly downsample to words of each?
         labels = rnn.pad_sequence(labels, batch_first=True).to(self._device)
-        bce_loss = nn.functional.binary_cross_entropy_with_logits(logits, labels)
+        self._cached_labels = labels
+        bce_loss = nn.functional.binary_cross_entropy_with_logits(logits, labels.float())
         return bce_loss.masked_fill(pad_mask, 0).sum()
 
     @staticmethod
-    def predict(logits: torch.Tensor, pad_mask: torch.Tensor, threshold=0.5) -> torch.Tensor:
+    def predict(preds: Tuple[torch.Tensor, torch.Tensor], threshold=0.5) -> torch.Tensor:
+        logits, pad_mask = preds
         # indicate any words which are keywords
         return torch.sigmoid(logits).gt(threshold).int().masked_fill(pad_mask, 0)
 
@@ -361,7 +369,7 @@ class TopicKeyEncBPemb(_TopicKeyBase):
         enc_outputs = enc_outputs.permute(1, 0, 2)
 
         # dense.shape: batch_size, max_seq_len, 2*enc_hidden_size
-        dense = self.seq_to_dense_map(enc_outputs)
+        dense = self.enc_to_dense_map(enc_outputs)
         dense = torch.tanh(dense)
 
         # final output layer, and remove the last dimension
