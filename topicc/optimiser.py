@@ -94,8 +94,9 @@ def train(topicc_model: Union[_TopicCBase, _TopicKeyBase],
           n_batch_validate=100,
           lr=0.0001,
           clip_grad=10,
+          validation_set_prop=0.1
           ) -> Union[_TopicCBase, _TopicKeyBase]:
-    train_dataset, valid_dataset = train_test_split(dataset, test_prop=0.05)
+    train_dataset, valid_dataset = train_test_split(dataset, test_prop=validation_set_prop)
 
     if hasattr(dataset, 'collate_fn'):
         collate_fn = dataset.collate_fn
